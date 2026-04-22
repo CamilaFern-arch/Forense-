@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Forensic Lab Interface</title>
+    <style>
+        body { margin: 0; background: #0a0c0f; color: #00ffb4; font-family: 'Courier New', monospace; overflow: hidden; }
+        canvas { display: block; touch-action: none; }
+        #ui { position: absolute; top: 20px; left: 20px; pointer-events: none; }
+        .btn-group { position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); display: flex; gap: 10px; }
+        button { background: rgba(0, 255, 180, 0.1); border: 1px solid #00ffb4; color: #00ffb4; padding: 10px 20px; cursor: pointer; pointer-events: auto; }
+        button:active { background: #00ffb4; color: #0a0c0f; }
+    </style>
+</head>
+<body>
+
+<div id="ui">
+    <h2 id="mode-title">MODO: SCANNER</h2>
+    <p id="data-out">Esperando indicios...</p>
+</div>
+
+<div class="btn-group">
+    <button onclick="setMode('SCAN')">SCAN</button>
+    <button onclick="setMode('BALLISTICS')">BALÍSTICA</button>
+    <button onclick="setMode('LUMINOL')">LUMINOL</button>
+</div>
+
+<canvas id="forensicCanvas"></canvas>
+
+<script>
+    const canvas = document.getElementById('forensicCanvas');
+    const ctx = canvas.getContext('2d');
+    const out = document.getElementById('data-out');
+    
+    let mode = 'SCAN';
+    let points = [];
+    let scanLine = 0;
+
+    function resize() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resize);
+    resize();
+
+    function setMode(m) {
+        mode = m;
+        document.getElementById('mode-title').innerText = `MODO: ${m}`;
+        points = []; // Limpiar para nuevo análisis
+    }
+
+    canvas.addEventListener('pointerdown', (e) => {
+        points.push({x: e.clientX, y: e.clientY});
+        if(mode === 'BALLISTICS' && points.length >= 2) {
+            const p1 = points[points.length-2];
+            const p2 = points[points.length-1];
+            const angle = Math.atan2(p2.y - p1.y, p2.x - p1.x) * 180 / Math.PI;
+            out.innerText = `Ángulo de incidencia detectado: ${Math.abs(angle.toFixed(2))}°`;
+        }
+    });
+
+    function draw() {
+        // Fondo y rejilla
+        ctx.fillStyle = '#0a0c0f';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        ctx.strokeStyle = '#1e1e23';
+        for(let i=0; i<canvas.width; i+=40) { ctx.beginPath(); ctx.moveTo(i,0); ctx.lineTo(i,canvas.height); ctx.stroke(); }
+        for(let i=0; i<canvas.height; i+=40) { ctx.beginPath(); ctx.moveTo(0,i); ctx.lineTo(canvas.width,i); ctx.stroke(); }
+
+        if(mode === 'SCAN') {
+            scanLine = (scanLine + 2) % canvas.height;
+            ctx.strokeStyle = '#00ffb4';
+            ctx.beginPath(); ctx.moveTo(0, scanLine); ctx.lineTo(canvas.width, scanLine); ctx.stroke();
+        }
+
+        if(mode === 'LUMINOL') {
+            // Simulamos rastro hemático oculto
+            ctx.fillStyle = 'rgba(0, 200, 255, 0.2)';
+            ctx.beginPath();
+            ctx.ellipse(300, 300, 40, 80, Math.PI/4, 0, Math.PI*2);
+            ctx.fill();
+        }
+
+        // Dibujar evidencias marcadas
+        points.forEach(p => {
+            ctx.strokeStyle = (mode === 'BALLISTICS') ? '#ff3232' : '#00ffb4';
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, 10, 0, Math.PI*2);
+            ctx.stroke();
+        });
+
+        // Conectar líneas en balística
+        if(mode === 'BALLISTICS' && points.length >= 2) {
+            ctx.strokeStyle = '#ff3232';
+            ctx.setLineDash([5, 5]);
+            ctx.beginPath();
+            ctx.moveTo(points[points.length-2].x, points[points.length-2].y);
+            ctx.lineTo(points[points.length-1].x, points[points.length-1].y);
+            ctx.stroke();
+            ctx.setLineDash([]);
+        }
+
+        requestAnimationFrame(draw);
+    }
+    draw();
+</script>
+
+</body>
+</html>
